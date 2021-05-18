@@ -1,1 +1,35 @@
-Generally speaking, it seems that 
+Generally speaking, it seems that tick-level data can be broken down into 4 different types.
+
+Trade tick data: sequence of executed trades formatted as (timestamp, price, volume, exchange). It can include additional information, such as Correction Indicator, Sequence Number, Trade Stop Indicator, Source of Trade, and more.
+
+Bid/Ask (Level 1) data: the NBBO (National Best Bid and Offer) bid/ask quotes.
+
+Bid/Ask (Level 2) data: Level 1 data plus each registered dealer's best bid and offer (i.e. the full order book). This is intended to display market depth and momentum to traders and investors.
+
+Bid/Ask (Level 3) data: only available to NASD member firms and comes with execution and amendment privileges.
+
+From these types of historical intraday data, it is possible to construct other forms of tick-level data. For example:
+
+One-Minute Bars: Open, High, Low, Close, and Volume for each minute interval built from Trade data.
+
+Tick-level data has been found to be susceptible/vulnerable to errors and corruption. Hence, https://quantpedia.com/working-with-high-frequency-tick-data-cleaning-the-data/ lists some general steps to take to clean and validate the data available.
+
+- Zero or Negative Prices or Volumes
+- Simultaneous Observations
+- Bid/Ask Bounce
+- Low volume ticks
+- Gaps
+- Outliers
+
+In terms of available R packages that we could use to analyze tick-level data, we have considered the packages "quantmod" and "highfrequency." We have determined that "highfrequency" is the better option out of the two. However, we have also noted that many of the functions contained within this package requires a format that includes certain information. 
+
+Ideally, the format for trade data would look like the following: (timestamp, exchange code, symbol, ...)
+
+Ideally, the format for quotes data would look like the following: (timestamp, symbol, exchange code, bid, bid size, offer, offer size).
+
+Important functions: tradesCleanup, quotesCleanup, tradesCleanupUsingQuotes, etc.
+
+Questions:
+1. What programming language is most compatible with your platform? Is R the best choice?
+2. What is the format of the tick-level data provided by Refinitiv?
+3. What are some R packages or other tools we can leverage to analyze the data provided by Refinitiv?
