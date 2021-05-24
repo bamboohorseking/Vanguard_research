@@ -23,7 +23,7 @@ Tick-level data has been found to be susceptible/vulnerable to errors and corrup
 
 In terms of available R packages that we could use to analyze tick-level data, we have considered the packages "quantmod" and "highfrequency." We have determined that "highfrequency" is the better option out of the two. However, we have also noted that many of the functions contained within this package requires a format that includes certain information. 
 
-Ideally, the format for trade data would look like the following: (timestamp, exchange code, symbol, ...)
+Ideally, the format for trade data would look like the following: (timestamp, exchange code, symbol, price, size, ...)
 
 Ideally, the format for quotes data would look like the following: (timestamp, symbol, exchange code, bid, bid size, offer, offer size).
 
