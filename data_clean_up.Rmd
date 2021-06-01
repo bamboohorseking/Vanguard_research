@@ -2,10 +2,10 @@
 title: "Data clean up"
 author: "Shiyuan Wang"
 date: "5/25/2021"
-output: pdf_document
+output: pdf_document 
 ---
 
-```{r, echo = TRUE}
+```{r echo=TRUE, message=FALSE, warning=FALSE}
 ###LIBRARIES
 library(lubridate)
 library(highfrequency)
@@ -33,7 +33,7 @@ summary(trade_data[, c("timestamp","price","Size")])
 
 
 a <- xts(trade_data,order.by=as.POSIXct(trade_data$timestamp))
-tradesCleanup(tDataRaw= a,exchanges = "NSQ", tz = "EST")
+trades_afterclean <- tradesCleanup(tDataRaw= a,exchanges = "NSQ", tz = "EST")
 
 ```
 
@@ -57,11 +57,149 @@ quote_data$DT2 <- strptime(quote_data$DT2, "%Y-%m-%d %H:%M:%OS", tz = "EST")
 
 b <- as.xts(quote_data,order.by=as.POSIXct(quote_data$DT2))
 
-quotesCleanup(qDataRaw= b)
+quotes_afterclean <- quotesCleanup(qDataRaw= b)
 
 
 
 ```
+
+```{r eval=FALSE, eval=FALSE}
+#DATA Clean up function 
+
+aggregatePrice() 
+###Aggregate a times series but keep first and last observations.
+
+aggregateQuotes()
+###Aggregate a quote data in a xts format
+
+aggregateTrades()
+###Aggregate a trade data in a xts format
+
+aggregateTS()
+###Aggregate a time series, it did pretty much the same thing as the aggregatePrice.
+
+tradesCleanup()
+###This function is a wrapper function for cleaning the trade data. 
+###It must contain columns: DT2, exchange code, SYMBOL, PRICE, SIZE ,BID
+
+quotesCleanup()
+###This function is a wrapper function for cleaning the quote data.
+###It must contain columns: DT2, SYMBOL, EX, BID, BIDSIZ, OFR, OFRSIZ, PRICE)
+###For trades/quotes clean up function, it requires xts format, so if we have cvs file, it can automatically transfer it to xts for us, if we already have xts file, we do not need to do that part in those functions. 
+
+autoSelectExchangeQuotes()
+###Only return the data from the stock exchange with the highest volume in quote data
+
+autoSelectExchangeTrades()
+###Only return the data from the stock exchange with the highest trading volume in trade data
+
+businessTimeAggregation()
+###Aggregation function based on business time. 
+
+exchangeHoursOnly()
+###This function is used for extracting data from an xts object for the exchange hours only. 
+
+makeOHLCV()
+###this function is a kind of aggregation function that can make the high frequency data become OHLCV data by the time range that we set. 
+
+makeRMFormat()
+###this function is used for spliting data to a format which can be used for realized measure.
+
+matchTradesQuotes()
+###this function can match trade data and quote data and combine them. 
+
+mergeQuotesSameTimestamp()
+mergeTradesSameTimestamp()
+###this function is also aggregating the quote/trade data which has the same timestamp. 
+
+
+
+```
+
+```{r eval=FALSE, eval=FALSE}
+#Statistical test
+
+AJjumpTest()
+### Ait-Sahalia and Jacod test for the presence of jumps in the price series. 
+
+BNSjumpTest()
+### Barndorff-Nielsen and Shephard tests for the presence of jumps in the price series. 
+###Null hypothesis: there are no jumps. 
+
+driftBursts()
+###This function will return the result of testing drift burst hypothesis and also shows the test statistics. 
+
+# dat <- sampleTData[as.Date(DT) == "2018-01-02"]
+# DBH <- driftBursts(dat, testTimes = seq(35100,57600,60), preAverage = 2, ACLag = -1L, meanBandwidth = 300L, varianceBandwidth = 900L)
+# print(DBH)
+
+getCriticalValues()
+###get critical values for drift burst hypothesis
+
+getLiquidityMeasures()
+###Compute Liquidity Measures
+
+intradayJumpTest()
+###This can be used to test for jumps in intraday price paths. 
+
+IVinference()
+###This function returns the SE, value and confidence band of Integrated variance estimator. 
+
+JOjumpTest()
+###Test for jumps in the price series by using Jiang and Oomen test. 
+
+makePsd()
+###this function can return the positive semidefinite projection of a symmetric matrix using the eigenvalue method. 
+
+rankJumpTest()
+###Calculate the rank jump test of Li et al. 
+
+rAVGCov()
+###Calculates realized variance by averaging across partially overlapping grids. 
+
+rBPCov()
+###Calculate the Realized BiPoweer Covariance defined by Barndorff-Nielsen and Shephard. 
+
+
+
+
+
+```
+
+
+
+```{r eval=FALSE, eval=FALSE}
+#Building model
+
+getTradeDirection()
+###Using Lee and Ready algorithm to determine the inferred trade direction.
+
+HARmodel()
+###This function returns the estimates for the HAR model for realized volatility. 
+
+HEAVYmodel()
+###This functions calculate HEAVY model which is introduced by Shepard and Sheppard. 
+
+
+
+
+
+
+
+```
+
+```{r eval=FALSE, eval=FALSE}
+#general information
+
+listAvailableKernels()
+###This function will list all available kernels
+
+listCholCovEstimators()
+###This function will list the available estimators for the CholCov estimation
+
+
+```
+
 
 ```{r, echo = TRUE}
 library(TAQMNGR)
