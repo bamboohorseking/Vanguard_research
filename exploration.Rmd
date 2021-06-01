@@ -1,0 +1,484 @@
+---
+title: "Exploration"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Reading in Tick Data
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(quantmod)
+library(plotly)
+library(dplyr)
+library(tidyverse)
+library(splitstackshape)
+library(highfrequency)
+library(lubridate)
+library(data.table)
+library(TAQMNGR)
+library(FKF)
+library(rugarch)
+library(xts)
+
+# Reading in data
+data <- read.table("AMZN_2020-07-01.txt")
+head(data)
+data1 <- cSplit(data, "V2", ",")
+head(data1)
+colnames(data1) <- c("date","time","price","volume","index")
+data1
+```
+
+## Testing Plotly and Quantmod
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Candle Stick Chart
+getSymbols("AAPL", src='yahoo')
+
+df <- data.frame(Date=index(AAPL), coredata(AAPL))
+df1 <- tail(df, 30)
+
+fig1 <- df1 %>% plot_ly(x = ~Date, type="candlestick", open = ~AAPL.Open, close = ~AAPL.Close, high = ~AAPL.High, low = ~AAPL.Low)
+
+fig2 <- fig1 %>% layout(title="Basic Candle Stick Chart")
+
+fig2
+```
+
+## Testing TAQMNGR
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# https://cran.r-project.org/web/packages/TAQMNGR/TAQMNGR.pdf
+# Reference for functions https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.107.1176&rep=rep1&type=pdf
+# General guidelines for trade and quote data file format https://s3-us-west-2.amazonaws.com/tick-data-s3/pdf/Futures_File_Format_Guide.pdf
+# Reference for conditions: https://www.interactivebrokers.com/en/index.php?f=7235
+# USING TAQMNGR
+# Requires .gz files from Wharton Data Services
+dirInput <- "C:/Users/robin/Desktop/test_input"
+dirOutput <- "C:/Users/robin/Desktop/test_output"
+
+TAQ.CleanTickByTick(dirInput = dirInput, dirOutput = dirOutput, window = 80, deltaTrimmed = 0.10, granularity = 0.04, useCleaned = TRUE)
+
+TAQ.Report(dirInput = dirOutput, symbol = c("DOG"))
+TAQ.Report(dirInput = dirOutput, symbol = c("GNU"))
+
+TAQ.Aggregate(dirInput = dirOutput, symbol = c("DOG", "GNU"), bin = 300, useAggregated = TRUE)
+
+dog <- TAQ.Read(dirInput = dirOutput, symbol = "DOG", startDate = 00010101, endDate = 20141231, bin = 300)
+gnu <- TAQ.Read(dirInput = dirOutput, symbol = "GNU", startDate=00010101, endDate = 20141231, bin = 300)
+```
+
+Cleaning trade data:
+
+All transactions that are not correct (CORR field different from 0) and delayed (COND field equal to Z) are eliminated. Z refers to sold (out of sequence). They state that "little help comes from information which is no the tick-by-tick price sequence." Given some exploration,  it seems that other conditions, such as U, are also eliminated.
+
+Formula to remove outliers:
+$(|p_i - \bar{p_i}(k)| < 3s_i(k) + \gamma)$, where true observation $i$ is kept and false observation $i$ is removed.
+
+$\bar{p_i}(k)$ and $s_i(k)$ denote respectively the $\delta$-trimmed sample mean and sample standard deviation of a neighborhood of $k$ observations around $i$ and $\gamma$ is a granularity parameter. The role of the $\gamma$ parameter is to avoid zero variances produced by sequences of k equal prices.
+
+## Testing Functions from High Frequency
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# using trade data
+trade_data <- read.csv("trade_file.csv")
+trade_data$X <- NULL
+colnames(trade_data) <- c("DT2", "type", "EX", "SYMBOL", "PRICE", "SIZE")
+
+# casting into datetime
+trade_data$DT2 <- as.character(trade_data$DT2)
+trade_data$DT2 <- substr(trade_data$DT2, 1,26)
+
+head(trade_data$DT2)
+
+my_options <- options(digits.secs=6)
+trade_data$DT2 <- strptime(trade_data$DT2, "%Y-%m-%d %H:%M:%OS", tz="EST")
+head(trade_data$DT2)
+
+# summary of data
+summary(trade_data[, c("DT2", "SIZE", "PRICE")])
+
+# testing tradesCleanup function. This function deletes entries with a price reported as zero, selects trades from a single exchange, filters for the sales condition to be either "E" or "F", summarizes trade that have the same time stamp (the default is to take the median price and summed-up volume of the different trades)
+a <- xts(trade_data, order.by=as.POSIXct(trade_data$DT2))
+head(a)
+
+length(unique(a$DT2))
+
+trade_data_cleaned <- tradesCleanup(tDataRaw=a, exchange="NSQ")
+trade_data_cleaned$report
+clean <- trade_data_cleaned$tData
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Using quote data
+quote_data <- read.csv('quote_file.csv')
+quote_data$X <- NULL
+colnames(quote_data) <- c("DT2", "type", "EX", "symbol", "BID", "BIDSIZ", "OFR", "OFRSIZ")
+
+quote_data <- quote_data[, c("DT2", "EX", "BID", "BIDSIZ", "OFR", "OFRSIZ", "symbol")]
+quote_data$EX <- "T"
+
+# Formatting the datetime
+quote_data$DT2 <- as.character(quote_data$DT2)
+quote_data$DT2 <- substr(quote_data$DT2, 1, 26)
+
+my_options <- options(digits.secs = 6)
+
+quote_data$DT2 <- strptime(quote_data$DT2, "%Y-%m-%d %H:%M:%OS", tz="EST")
+
+b <- xts(quote_data, order.by = as.POSIXct(quote_data$DT2))
+
+quote_data_cleaned <- quotesCleanup(qDataRaw=b)
+quote_data_cleaned$report
+clean2 <- quote_data_cleaned$qData
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# testing highfrequency functions on page 2
+# information on sales condition: https://www.nyse.com/publicdocs/nyse/data/Daily_TAQ_Client_Spec_v3.3.pdf
+
+# need to make sure that qualifiers corresponds to sales condition
+
+complex_trade_data <- read.csv('complex_test_file.csv')
+complex_trade_data$X <- NULL
+colnames(complex_trade_data) <- c("DT2", "type", "EX", "SYMBOL", "PRICE", "SIZE", "TR_SEQNUM", "TR_SCOND_RAW")
+
+complex_trade_data$DT2 <- as.character(complex_trade_data$DT2)
+complex_trade_data$DT2 <- substr(complex_trade_data$DT2, 1,26)
+
+my_options <- options(digits.secs=6)
+complex_trade_data$DT2 <- strptime(complex_trade_data$DT2, "%Y-%m-%d %H:%M:%OS", tz="EST")
+
+# changing the format of TR_SCOND
+complex_trade_data$COND <- sub("\\[.*", "", complex_trade_data$TR_SCOND_RAW)
+complex_trade_data$COND <- gsub("\\s+", "", complex_trade_data$COND)
+
+complex_xts <- as.xts(complex_trade_data, order.by = as.POSIXct(complex_trade_data$DT2))
+
+# tradesCondition() function
+# delete entries with abnormal trades condition
+nrow(complex_xts)
+
+valid_conditions <- c("@", "@F", "@T", "@I", "@FT", "@FTI", "@FI", "@TI")
+
+complex_xts1 <- tradesCondition(tData=complex_xts, validConds = valid_conditions)
+
+nrow(complex_xts1)
+
+valid_conditions2 <- c("@FTI", "@F", "@T", "@I")
+
+complex_xts2 <- tradesCondition(tData=complex_xts, validConds = valid_conditions2)
+
+nrow(complex_xts2)
+
+# tradesCleanupUsingQuotes() function
+# performs cleaning procedure rmTradeOutliersUsingQuotes
+
+# important parameters: BFM (a logical determining whether to conduct "Backwards-Forwards matching" of trades and quotes. the algorithm tries to match trades that fall outside the bid-ask and first tries to match a small window forwards and if this fails, it tries to match backwards in a bigger window)
+
+clean3 <- tradesCleanupUsingQuotes(tData=clean, qData=clean2)
+nrow(clean)
+nrow(clean2)
+nrow(clean3)
+
+# summary.HARmodel
+# SPYRM
+
+# spotVol() function
+# estimates a wide variety of spot volatility estimators
+
+## Not run:
+init <- list(sigma = 0.03, sigma_mu = 0.005, sigma_h = 0.007, sigma_k = 0.06, phi = 0.194, rho = 0.986, mu = c(1.87,-0.42), delta_c = c(0.25, -0.05, -0.2, 0.13, 0.02), delta_s = c(-1.2, 0.11, 0.26, -0.03, 0.08))
+
+# Next method will take around 360 iterations
+vol1 <- spotVol(sampleOneMinuteData[, list(DT, PRICE = MARKET)], method = "stochper", init = init)
+
+plot(as.numeric(vol1$spot[1:780]), type="l")
+legend("topright", c("stochper"), col = c("black"), lty=1)
+## End(Not run)
+
+# Various kernel estimates
+## Not run:
+h1 <- bw.nrd0((1:nrow(sampleOneMinuteData[, list(DT, PRICE = MARKET)]))*(5*60))
+vol2 <- spotVol(sampleOneMinuteData[, list(DT, PRICE = MARKET)], method = "kernel", h = h1)
+
+vol3 <- spotVol(sampleOneMinuteData[, list(DT, PRICE = MARKET)], method = "kernel", est = "quarticity")
+
+vol4 <- spotVol(sampleOneMinuteData[, list(DT, PRICE = MARKET)], method = "kernel", est = "cv")
+
+plot(vol2, length = 2880)
+lines(as.numeric(t(vol3$spot))[1:2880], col = "red")
+lines(as.numeric(t(vol4$spot))[1:2880], col = "blue")
+legend("topright", c("h = simple estimate", "h = quarticity corrected", "h = crossvalidated"), col = c("black", "red", "blue"), lty=1)
+## End(Not run)
+
+# Piecewise constant volatility
+## Not run:
+vol5 <- spotVol(sampleOneMinuteData[, list(DT, PRICE = MARKET)], method = "piecewise", type = "MDa", n=20, alpha = 0.005, volest = "bipower", online = FALSE)
+plot(vol5)
+# note: argument 'm' is faulty
+## End(Not run)
+
+# Compare regular GARCH(1,1) model to eGARCH, both with external regressors
+## Not run:
+vol6 <- spotVol(sampleOneMinuteData[, list(DT, PRICE = MARKET)], method = "garch", model = "sGARCH")
+vol7 <- spotVol(sampleOneMinuteData[, list(DT, PRICE = STOCK)], method = "garch", model = "eGARCH")
+plot(as.numeric(t(vol6$spot)), type = "l")
+lines(as.numeric(t(vol7$spot)), col = "red")
+legend("topleft", c("GARCH", "eGARCH"), col = c("black", "red"), lty = 1)
+## End(Not run)
+
+# spotDrift() function
+# function used to estimate the spot drift of intraday (tick) stock prices/returns
+
+# Example 1: Rolling mean and median estimators for 2 days
+meandrift <- spotDrift(data = sampleTData, alignPeriod = 1)
+mediandrift <- spotDrift(data = sampleTData, method = "median",
+alignBy = "seconds", alignPeriod = 30, tz = "EST")
+plot(meandrift)
+plot(mediandrift)
+
+## Not run:
+# Example 2: Kernel based estimator for one day with data.table format
+price <- sampleTData[as.Date(DT) == "2018-01-02", list(DT, PRICE)]
+kerneldrift <- spotDrift(sampleTDataEurope, method = "driftKernel",
+alignBy = "minutes", alignPeriod = 1)
+plot(kerneldrift)
+## End(Not run)
+
+# selectExchange() function
+# filter raw trade data to only contain specified exchanges
+
+complex_xts_exfilter <- selectExchange(data=complex_xts, exch="NSQ")
+nrow(complex_xts_exfilter)
+
+# RV() function
+# an estimator of realized variance
+# input: an xts object containing all returns in period t for one asset
+
+# rTSCov() function
+# calculate the two time scale covariance matrix. By the use of two time scales, this covariance estimate is robust to microstructure noise and non-synchrnoic trading.
+
+# output: if input is from one day, an N by N matrix is returned. If the data is a univariate xts object with multiple days, an xts is returned. If the data is multivariate and contains multiple days, the function returns a list containing N by N matrices.
+
+# Robust Realized two timescales Variance/Covariance
+# Multivariate:
+## Not run:
+set.seed(123)
+start <- strptime("1970-01-01", format = "%Y-%m-%d", tz = "UTC")
+
+timestamps <- start + seq(34200, 57600, length.out = 23401)
+
+dat <- cbind(rnorm(23401) * sqrt(1/23401), rnorm(23401) * sqrt(1/23401))
+
+dat <- exp(cumsum(xts(dat, timestamps)))
+
+price1 <- dat[,1]
+price2 <- dat[,2]
+
+rcovts <- rTSCov(pData = list(price1, price2))
+# Note: List of prices as input
+rcovts
+## End(Not run)
+
+# rTPQuar() function
+# realized tri-power quarticity
+
+# input: rData can contain returns or prices, possibly for multiple assets over multiple days
+
+# with our dataset
+tpv <- rTPQuar(rData = clean3[, c("DT2", "PRICE")], alignBy = "minutes", alignPeriod = 5, makeReturns = TRUE)
+tpv
+
+# with sample
+data(sampleTData)
+tpv2 <- rTPQuar(rData = sampleTData[, list(DT, PRICE)], alignBy = "minutes", alignPeriod = 5, makeReturns = TRUE)
+tpv2
+
+# rThresholdCov
+# uses univariate jump detection rules to truncate the effect of jumps on the covariance estimate. As such, it remains feasible in high dimensions, but it is less robust so small cojumps
+
+# output: if input is from one day, an N by N matrix is returned. If the data is a univariate xts object with multiple days, an xts is returned. If the data is multivariate and contains multiple days, the function returns a list containing N by N matrices.
+
+# Realized threshold Variance/Covariance:
+# Multivariate:
+## Not run:
+set.seed(123)
+start2 <- strptime("1970-01-01", format = "%Y-%m-%d", tz = "UTC")
+timestamps2 <- start2 + seq(34200, 57600, length.out = 23401)
+dat2 <- cbind(rnorm(23401) * sqrt(1/23401), rnorm(23401) * sqrt(1/23401))
+
+dat2 <- exp(cumsum(xts(dat2, timestamps2)))
+
+rcThreshold <- rThresholdCov(dat2, alignBy = "minutes", alignPeriod = 1, makeReturns = TRUE)
+
+rcThreshold
+## End(Not run)
+
+# rSV() function
+# Calculates the realized semivariances. Two outcomes: 1. Downside realized semivariance, 2. Upside realized semivariance
+
+# our dataset
+sv1 <- rSV(clean3[, c("DT2", "PRICE")], alignBy = "minutes", alignPeriod = 5, makeReturns = TRUE)
+sv1
+
+# sample dataset
+sv2 <- rSV(sampleTData[, list(DT, PRICE)], alignBy = "minutes", alignPeriod = 5, makeReturns = TRUE)
+sv2
+
+# rSkew() function
+# calculate the realized skewness
+
+# our dataset
+rs <- rSkew(clean3[, c("DT2", "PRICE")],alignBy ="minutes", alignPeriod =5,
+makeReturns = TRUE)
+rs
+
+# sample dataset
+rs2 <- rSkew(sampleTData[, list(DT, PRICE)],alignBy ="minutes", alignPeriod =5,
+makeReturns = TRUE)
+rs2
+
+# rSemiCov() function
+# calculate the Realized Semicovariances.
+
+# Realized semi-variance/semi-covariance for prices aligned
+# at 5 minutes.
+# Univariate:
+rsv3 = rSemiCov(rData = sampleTData[, list(DT, PRICE)], alignBy = "minutes", alignPeriod = 5, makeReturns = TRUE)
+rsv3
+## Not run:
+
+# Multivariate multi day:
+rsc3 <- rSemiCov(sampleOneMinuteData, makeReturns = TRUE) # rSC is a list of lists
+# We extract the covariance between stock 1 and stock 2 for all three covariances.
+mixed <- sapply(rsc3, function(x) x[["mixed"]][1,2])
+neg <- sapply(rsc3, function(x) x[["negative"]][1,2])
+pos <- sapply(rsc3, function(x) x[["positive"]][1,2])
+covariances <- xts(cbind(mixed, neg, pos), as.Date(names(rsc3)))
+colnames(covariances) <- c("mixed", "neg", "pos")
+# We make a quick plot of the different covariances
+plot(covariances)
+addLegend(lty = 1) # Add legend so we can distinguish the series.
+## End(Not run)
+
+# rRTSCov() function: robust two time scale covariance estimation
+## Not run:
+set.seed(123)
+start10 <- strptime("1970-01-01", format = "%Y-%m-%d", tz = "UTC")
+timestamps10 <- start10 + seq(34200, 57600, length.out = 23401)
+dat10 <- cbind(rnorm(23401) * sqrt(1/23401), rnorm(23401) * sqrt(1/23401))
+dat10 <- exp(cumsum(xts(dat10, timestamps10)))
+price10 <- dat[,1]
+price20 <- dat[,2]
+rcRTS <- rRTSCov(pData = list(price10, price20))
+# Note: List of prices as input
+rcRTS
+## End(Not run)
+
+# rQuar() function: realized quarticity
+
+rq <- rQuar(rData = sampleTData[, list(DT, PRICE)], alignBy = "minutes", alignPeriod = 5, makeReturns = TRUE)
+rq
+
+# rQPVar() function: calculate the realized quad-power variation
+
+qpv <- rQPVar(rData= sampleTData[, list(DT, PRICE)], alignBy= "minutes", alignPeriod =5, makeReturns= TRUE)
+qpv
+
+# rOWCov() function: calculate the realized outlyingness weighted covariance
+
+## Not run:
+# Realized Outlyingness Weighted Variance/Covariance for prices aligned
+# at 1 minutes.
+# Univariate:
+row <- rOWCov(rData = as.xts(sampleOneMinuteData[as.Date(DT) == "2001-08-04", list(DT, MARKET)]), makeReturns = TRUE)
+row
+# Multivariate:
+rowc <- rOWCov(rData = as.xts(sampleOneMinuteData[as.Date(DT) == "2001-08-04",]), makeReturns = TRUE)
+rowc
+## End(Not run)
+
+data("sampleOneMinuteData")
+
+# rmTradeOutliersUsingQuotes() function
+# deletes entries with prices that are above the ask plus the bid-ask spread
+
+clean4 <- rmTradeOutliersUsingQuotes(tData=clean, qData=clean2)
+nrow(clean4)
+
+# rMRC() function: calculate univariate or multivariate pre-averaged estimator
+
+## Not run:
+# Note that this ought to be tick-by-tick data and this example is only to show the usage.
+a3 <- list(as.xts(sampleOneMinuteData[as.Date(DT) == "2001-08-04", list(DT, MARKET)]), as.xts(sampleOneMinuteData[as.Date(DT) == "2001-08-04", list(DT, STOCK)]))
+rMRC(a3, pairwise = TRUE, makePsd = TRUE)
+## End(Not run)
+
+# rMPV() function: calculate the realized multipower variation
+
+mpv <- rMPV(sampleTData[, list(DT, PRICE)], m = 2, p = 3, alignBy = "minutes", alignPeriod = 5, makeReturns = TRUE)
+mpv
+
+# rmOutliersQuotes() function: delete entries for which the mid-quote is outlying with respect to surrounding entries
+
+# parameters:
+# maxi: the maximum number of median absolute deviation allowed
+# window: indicates the time window for which the "outlyingness" is considered
+# type: "standard" or "advanced"
+# tz: timezone
+
+no_outliers_b <- rmOutliersQuotes(qData=b)
+nrow(b)
+nrow(no_outliers_b)
+
+# rmNegativeSpread() function: delete entries for which the spread is negative
+
+no_neg_spread_b <- rmOutliersQuotes(qData=b)
+nrow(b)
+nrow(no_neg_spread_b)
+
+# rmLargeSpread() function: delete entries for which the spread is more than maxi times the median spread
+
+# parameters:
+# maxi: By default maxi = 50, which means that entries are deleted if the spread is more than 50 times the median spread on that day
+
+no_large_spread_b <- rmLargeSpread(qData=b, maxi=10)
+nrow(b)
+nrow(no_large_spread_b)
+
+# rMinRV: calculate the rMinRV
+# rMinRQ: an estimator of integrated quarticity from applying the minimmum operator on blocks of two returns
+# rMedRV: calculate the rMedRV
+# rMedRQ: an estimator of integrated quarticity from applying the median operator on blocks of three returns
+# rKurt: calculate the realized kurtosis
+# rKernelCov: realized kernel estimator
+# listAvailableKernels: rectangular, bartlett, second-order, epanechnikov, cubiic, fifth, sixth, seventh, eighth, parzen, tukeyhanning, modifiedtukeyhanning
+# rHYCov: calculates the Hayashi-Yoshida covariance estimator
+# rCholCov: positive semi-definite covariance estimation using the CholCov algorithm (need help with this)
+# rCov: returns the realized covariation
+# refreshTime: synchhronize (multiple) irregular timeseries by refresh time
+
+# Suppose irregular timepoints:
+start55 <- as.POSIXct("2010-01-01 09:30:00")
+ta <- start55 + c(1,2,4,5,9)
+tb <- start55 + c(1,3,6,7,8,9,10,11)
+# Yielding the following timeseries:
+a55 <- xts::as.xts(1:length(ta), order.by = ta)
+b55 <- xts::as.xts(1:length(tb), order.by = tb)
+# Calculate the synchronized timeseries:
+refreshTime(list(a55,b55))
+
+# ReMeDI() function: estimates the auto-covariance of market-microstructure noise
+
+remed <- ReMeDI(sampleTData[as.Date(DT) == "2018-01-02", ], kn = 2, lags = 1:8)
+# We can also use the algorithm for choosing the kn tuning parameter
+optimalKn <- knChooseReMeDI(sampleTData[as.Date(DT) == "2018-01-02",], knMax = 10, tol = 0.05, size = 3, lower = 2, upper = 5, plot = TRUE)
+optimalKn
+remed <- ReMeDI(sampleTData[as.Date(DT) == "2018-01-02", ], kn = optimalKn, lags = 1:8)
+
+# ReMeDIAsymptoticVariance: estimates the asymptotic variance of the ReMeDI estimator
+```
