@@ -48,6 +48,10 @@ library(highfrequency)
   * calculates the two time scale covariance matrix. By the use of two time scales, this covariance estimate is robust to microstructure noise and non-synchronic trading.
 * RV()
   * an estimator of realized variance.
+* rAVGCov()
+  * Calculates realized variance by averaging across partially overlapping grids. 
+* rBPCov()
+  * Calculate the Realized BiPoweer Covariance defined by Barndorff-Nielsen and Shephard. 
 
 ## Other
 
@@ -76,6 +80,25 @@ library(highfrequency)
   * funnction used to estiamte the spot drift of intraday stock prices/returns. Details on page 118-119.
 * spotVol()
   * estimates a wide variety of spot volatility estimators. Details on page 121-126.
+* AJjumpTest()
+  * Ait-Sahalia and Jacod test for the presence of jumps in the price series. 
+* BNSjumpTest()
+  * Barndorff-Nielsen and Shephard tests for the presence of jumps in the price series. Null hypothesis: there are no jumps. * driftBursts()
+  * This function will return the result of testing drift burst hypothesis and also shows the test statistics. 
+* getCriticalValues()
+  * get critical values for drift burst hypothesis
+* getLiquidityMeasures()
+  * Compute Liquidity Measures
+* intradayJumpTest()
+  * This can be used to test for jumps in intraday price paths.
+* IVinference()
+  * This function returns the SE, value and confidence band of Integrated variance estimator. 
+* JOjumpTest()
+  * Test for jumps in the price series by using Jiang and Oomen test. 
+* makePsd()
+  * this function can return the positive semidefinite projection of a symmetric matrix using the eigenvalue method. 
+* rankJumpTest()
+  * Calculate the rank jump test of Li et al. 
 
 ## Data Cleaning Functions
 
@@ -90,7 +113,43 @@ library(highfrequency)
 * selectExchange()
   * filter raw trade data to only contain specified exchanges
 * tradesCleanup()
+  * this function is a wrapper function for cleaning the trade data. It must contain the following columns: DT2, exchange code, SYMBOL, PRICE, SIZE ,BID
+* quotesCleanup()
+  * this function is a wrapper function for cleaning the quotes data. It must contain the following columns: DT2, SYMBOL, EX, BID, BIDSIZ, OFR, OFRSIZ, PRICE
 * tradesCleanupUsingQuotes()
 * tradesCondition()
   * deletes entries with abnormal trades condition
+* aggregatePrice() 
+  * Aggregate a times series but keep first and last observations.
+* aggregateQuotes()
+  * Aggregate a quote data in a xts format
+* aggregateTrades()
+  * Aggregate a trade data in a xts format
+* aggregateTS()
+  * Aggregate a time series, it did pretty much the same thing as the aggregatePrice.
+* autoSelectExchangeQuotes()
+  *Only return the data from the stock exchange with the highest volume in quote data
+* autoSelectExchangeTrades()
+  * Only return the data from the stock exchange with the highest trading volume in trade data
+* businessTimeAggregation()
+  * Aggregation function based on business time. 
+* exchangeHoursOnly()
+  * This function is used for extracting data from an xts object for the exchange hours only. 
+* makeOHLCV()
+  * this function is a kind of aggregation function that can make the high frequency data become OHLCV data by the time range that we set. 
+* makeRMFormat()
+  * this function is used for spliting data to a format which can be used for realized measure.
+* matchTradesQuotes()
+  * this function can match trade data and quote data and combine them. 
+* mergeQuotesSameTimestamp()
+* mergeTradesSameTimestamp()
+  * these functions aggregate the quote/trade data that have the same timestamp. 
 
+## Building Models
+
+* getTradeDirection()
+  * Using Lee and Ready algorithm to determine the inferred trade direction.
+* HARmodel()
+  * This function returns the estimates for the HAR model for realized volatility. 
+* HEAVYmodel()
+  * This functions calculate HEAVY model which is introduced by Shepard and Sheppard. 
