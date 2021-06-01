@@ -1,0 +1,84 @@
+---
+title: "Data clean up"
+author: "Shiyuan Wang"
+date: "5/25/2021"
+output: pdf_document
+---
+
+```{r, echo = TRUE}
+###LIBRARIES
+library(lubridate)
+library(highfrequency)
+library(stats)
+library(xts)
+
+```
+
+```{r, echo = TRUE}
+trade_data <- read.csv("trade_file.csv")
+trade_data$X <- NULL
+colnames(trade_data) <- c("timestamp", "type", "exchange_code", "symbol","price","Size")
+head(trade_data$timestamp)
+
+###Format the the timestamp
+trade_data$timestamp <- as.character(trade_data$timestamp)
+trade_data$timestamp <- substr(trade_data$timestamp, 1, 26)
+
+my_options <- options(digits.secs = 6)
+trade_data$timestamp <- strptime(trade_data$timestamp, "%Y-%m-%d %H:%M:%OS", tz = "EST")
+
+###summary of data 
+summary(trade_data[, c("timestamp","price","Size")])
+
+
+
+a <- xts(trade_data,order.by=as.POSIXct(trade_data$timestamp))
+tradesCleanup(tDataRaw= a,exchanges = "NSQ", tz = "EST")
+
+```
+
+
+```{r, echo = TRUE}
+
+quote_data <- read.csv("quote_file.csv")
+quote_data$X <- NULL
+colnames(quote_data) <- c("DT2", "type", "EX", "symbol","BID","BIDSIZ","OFR","OFRSIZ")
+quote_data <- quote_data[,c("DT2","EX","BID","BIDSIZ","OFR","OFRSIZ","symbol")]
+quote_data$exchange_code <- "T"
+
+###Format the the timestamp
+quote_data$DT2 <- as.character(quote_data$DT2)
+quote_data$DT2 <- substr(quote_data$DT2, 1, 26)
+
+my_options <- options(digits.secs = 6)
+
+quote_data$DT2 <- strptime(quote_data$DT2, "%Y-%m-%d %H:%M:%OS", tz = "EST")
+
+
+b <- as.xts(quote_data,order.by=as.POSIXct(quote_data$DT2))
+
+quotesCleanup(qDataRaw= b)
+
+
+
+```
+
+```{r, echo = TRUE}
+library(TAQMNGR)
+dirInput <- "D:/desktop/Vanguard_research/1"
+dirOutput <- "D:/desktop/Vanguard_research/2"
+
+TAQ.CleanTickByTick(dirInput = dirInput, dirOutput = dirOutput,window = 80, deltaTrimmed = 0.10, granularity = 0.04, useCleaned = TRUE)
+
+TAQ.Report(dirInput = dirOutput, symbol = c("DOG"))
+TAQ.Report(dirInput = dirOutput, symbol = c("GNU"))
+
+TAQ.Aggregate(dirInput = dirOutput, symbol = c("DOG", "GNU"), bin = 300, useAggregated = TRUE)
+
+dog <- TAQ.Read(dirInput = dirOutput, symbol = "DOG", startDate = 00010101, endDate = 20141231, bin = 300)
+
+
+
+
+
+```
