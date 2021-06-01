@@ -1,0 +1,96 @@
+---
+title: "Functions_Organized"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+library(highfrequency)
+# https://cran.r-project.org/web/packages/highfrequency/highfrequency.pdf
+```
+
+## Covariance estimation
+
+* rCholCov() 
+  * positive semi-definite covariance estimation using the CholCov algorithm. Details on page 70-72 of the R Documentation.
+* rCov()
+  * returns the Realized Covariation
+  * Let $r_{t,i}$ be an intraday $N X M$ return vector and $i = 1,...,M$ the number of intraday returns. Then $rCov_t = \sum_{i=1}^{M}r_{t,i}r'_{t,i}$
+* ReMeDI()
+  * estimates the auto-covariance of market-microstructure noise. Details on page 74-75 of the R Documentation.
+  * ReMeDIAsymptoticVariance(): estimates the asymptotic variance of the ReMeDI estimator.
+* rHYCov()
+  * calculates the Hayashi-Yoshia covariance estimator. Details on Hayashi, T. and Yoshida, N. (2005). On covariance estimation of non-synchronously observed diffusion processes. Bernoulli, 11, 359-379.
+* rKernelCov()
+  * realized covariance calculation using a kernel estimator. Available kernels: rectangular, bartlett, second-order, epanechnikov, cubiic, fifth, sixth, seventh, eighth, parzen, tukeyhanning, modifiedtukeyhanning. Details on page 80 of the R Documentation.
+* rMPV()
+  * calculates the realized multipower variation, as defined in Andersen, T. G., Dobrev, D., and Schaumburg, E. (2012). Jump-robust volatility estimation using nearest neighbor truncation. Journal of Econometrics, 169, 75-93. Details on page 90 of the R Documentation.
+* rMRC()
+  * modulated realized covariance. Calculates the univariate or multivariate pre-averaged estimator. Details on page 91 of the R Documentation.
+* rOWCov()
+  * calculates the realized outlyingness weighted covariance, defined in Boudt, K., Croux, C., and Laurent, S. (2008). Outlyingness weighted covariation. Journal of Financial Econometrics, 9, 657–684. Details on page 95.
+* rQPVar()
+  * realized quad-power variation of intraday returns. Details on page 97.
+* rRTSCov()
+  * calculates the robust two time scale covariance matrix. Details on page 99-101.
+* rSemiCov()
+  * calculates the realized semicovariances. Details on page 102.
+* rSV()
+  * calculates the realized semivariances of highfrequency return series with two outcomes: downside realized semivariance and upside realized semivariance. Details on page 105.
+* rThresholdCov()
+  * calculates the threshold covariance matrix. Details on page 106.
+* rTSCov()
+  * calculates the two time scale covariance matrix. By the use of two time scales, this covariance estimate is robust to microstructure noise and non-synchronic trading.
+* RV()
+  * an estimator of realized variance.
+
+## Other
+
+* refreshTime()
+  * implements the refresh time synchronization scheme proposed in: Harris, F., T. McInish, Shoesmith, G., and Wood, R. (1995). Cointegration, error correction, and price discovery on informationally linked security markets. Journal of Financial and Quantitative Analysis, 30, 563-581. It picks the so-called refresh times at which all assets have traded at least once since the last refresh time point. For example, the first refresh time corresponds to the first time at which all stocks have traded. The subsequent refresh time is defined as the first time when all stocks have traded again. This process is repeated until the end of one time series is reached.
+
+## Other Estimations
+
+* rKurt()
+  * calculates the realized kurtosis as defined in Amaya, D., Christoffersen, P., Jacobs, K., and Vasquez, A. (2015). Does realized skewness and kurtosis predict the cross-section of equity returns? Journal of Financial Economics, 118, 135-167.
+* rMedRQ()
+  * an estimator of integrated quarticity from applying the median operator on blocks of three returns. Defined in Andersen, T. G., Dobrev, D., and Schaumburg, E. (2012). Jump-robust volatility estimation using nearest neighbor truncation. Journal of Econometrics, 169, 75-93. Details on page 82 of the R Documentation.
+* rMedRV()
+  * Defined in Andersen, T. G., Dobrev, D., and Schaumburg, E. (2012). Jump-robust volatility estimation using nearest neighbor truncation. Journal of Econometrics, 169, 75-93.
+* rMinRQ()
+  * an estimator of integrated quarticity from applying the minimum operator on blocks of two returns. Defined in Andersen, T. G., Dobrev, D., and Schaumburg, E. (2012). Jump-robust volatility estimation using nearest neighbor truncation. Journal of Econometrics, 169, 75-93. Details on page 85 of the R Documentation.
+* rMinRV()
+  * Defined in Andersen, T. G., Dobrev, D., and Schaumburg, E. (2012). Jump-robust volatility estimation using nearest neighbor truncation. Journal of Econometrics, 169, 75-93.
+* rQuar()
+  * calculates the realized quarticity. Details on page 98.
+* rSkew()
+  * calculates the realized skewness. Details on page 104.
+* rTPQuar()
+  * calculates the realized tri-power quarticity. Details on page 108.
+* spotDrift()
+  * funnction used to estiamte the spot drift of intraday stock prices/returns. Details on page 118-119.
+* spotVol()
+  * estimates a wide variety of spot volatility estimators. Details on page 121-126.
+
+## Data Cleaning Functions
+
+* rmLargeSpread()
+  * deletes entires for which the spread is more than "maxi" times the median spread on that day.
+* rmNegativeSpread()
+  * deletes entries for which the spread is negative.
+* rmOutlierQuotes()
+  * deletes entries for which the mid-quote is outlying with respect to surrounding entries. Details on page 89 of the R Documentation.
+* rmTradeOutliersUsingQuotes()
+  * deletes entries with prices that are above the ask plus the bid-ask spread. Similar for prices below the bid minus the bid-ask spread.
+* selectExchange()
+  * filter raw trade data to only contain specified exchanges
+* tradesCleanup()
+* tradesCleanupUsingQuotes()
+* tradesCondition()
+  * deletes entries with abnormal trades condition
+
