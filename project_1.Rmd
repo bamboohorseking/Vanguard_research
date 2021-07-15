@@ -1,0 +1,110 @@
+---
+title: "Project_1"
+author: "Shiyuan Wang"
+date: "7/1/2021"
+output: pdf_document
+---
+
+```{r, echo = TRUE}
+###LIBRARIES
+library(quantmod)
+library(highfrequency)
+library(qcc)
+library(forecast)
+library(data.table)
+library(fpp2)
+library(tidyverse)
+```
+
+```{r, echo = TRUE}
+###Volume Curve
+###Simple Exponential Smoothing
+trade <- read.csv("trade_file.csv")
+trade$X <- NULL
+colnames(trade) <- c("timestamp", "type", "exchange_code", "symbol","price","Size")
+trade$timestamp <- strptime(trade$timestamp, "%Y-%m-%d %H:%M:%OS", tz = "EST")
+a <- xts(trade,order.by=as.POSIXct(trade$timestamp))
+trade.data <- aggregateTrades((a), alignBy = "minutes", alignPeriod = 1)
+b <- as.data.frame(trade.data)
+b$SIZE <- as.numeric(b$SIZE)
+c <- ts(b$SIZE)
+c.train <- window(c, end = 300)
+c.test <- window(c, start = 301, end  = 384)
+ses.c <- ses(c.train, alpha = .2, h = 84)
+autoplot(ses.c)
+
+c.dif <- diff(c.train)
+autoplot(c.dif)
+
+ses.c.dif <- ses(c.dif, alpha = .2, h = 84)
+autoplot(ses.c.dif)
+
+c.dif.test <- diff(c.test)
+accuracy(ses.c.dif, c.dif.test)
+
+alpha <- seq(.01, .99, by = .01)
+RMSE <- NA
+for(i in seq_along(alpha)) {
+  fit <- ses(c.dif, alpha = alpha[i], h = 100)
+  RMSE[i] <- accuracy(fit, c.dif.test)[2,2]
+}
+
+# convert to a data frame and idenitify min alpha value
+alpha.fit <- data_frame(alpha, RMSE)
+alpha.min <- filter(alpha.fit, RMSE == min(RMSE))
+
+# plot RMSE vs. alpha
+ggplot(alpha.fit, aes(alpha, RMSE)) +
+  geom_line() +
+  geom_point(data = alpha.min, aes(alpha, RMSE), size = 2, color = "blue")  
+
+ses.c.opt <- ses(c.dif, alpha = .01, h = 84)
+accuracy(ses.c.opt, c.dif.test)
+
+p1 <- autoplot(ses.c.opt) +
+  theme(legend.position = "bottom")
+p1
+```
+
+
+```{r, echo = TRUE}
+###Holt's method
+holt.c <- holt(window(c, end = 300), h = 84)
+autoplot(holt.c)
+
+holt.c$model
+
+accuracy(holt.c, c.test)
+
+# identify optimal alpha parameter
+beta <- seq(.0001, .5, by = .001)
+RMSE <- NA
+for(i in seq_along(beta)) {
+  fit <- holt(c.train, beta = beta[i], h = 100)
+  RMSE[i] <- accuracy(fit, c.test)[2,2]
+}
+
+# convert to a data frame and idenitify min alpha value
+beta.fit <- data_frame(beta, RMSE)
+beta.min <- filter(beta.fit, RMSE == min(RMSE))
+
+# plot RMSE vs. alpha
+ggplot(beta.fit, aes(beta, RMSE)) +
+  geom_line() +
+  geom_point(data = beta.min, aes(beta, RMSE), size = 2, color = "blue")
+
+holt.c.opt <- holt(c.train, h = 84, beta = 0.4741	)
+autoplot(holt.c.opt)
+accuracy(holt.c.opt, c.test)
+```
+
+
+
+```{r, echo = TRUE}
+###Holt-Winters Seasonal Method
+###We can do the Holt-Winters Seasonal Method if the data has seasonality
+
+
+
+
+```
